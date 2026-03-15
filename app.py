@@ -1,117 +1,96 @@
 import streamlit as st
-from xhtml2pdf import pisa
+from fpdf import FPDF
 from io import BytesIO
 
-st.set_page_config(page_title="Generador de CV Profesional", layout="wide")
+st.set_page_config(page_title="Generador de CV Pro", layout="wide")
 
-# Estilos visuales de la interfaz
-st.markdown("""
-    <style>
-    .main { background-color: #f8f9fa; }
-    .stButton>button { background-color: #1a2a3a; color: white; font-weight: bold; border-radius: 5px; }
-    </style>
-    """, unsafe_allow_stdio=True)
+# --- INTERFAZ ---
+st.title("📄 Mi Generador de CV Profesional")
+st.info("Rellena los datos a la izquierda. Usa ';' para separar puntos en la experiencia.")
 
-st.title("📄 Generador de CV Ejecutivo")
-st.write("Introduce los datos del cliente a la izquierda. Al terminar, pulsa el botón para generar el PDF.")
-
-# --- FORMULARIO EN LA BARRA LATERAL ---
 with st.sidebar:
     st.header("1. DATOS PERSONALES")
-    nombre = st.text_input("Nombre Completo (20pt)", "ROSA GÓMEZ GARCÍA")
-    cargo = st.text_input("Cargo / Subtítulo (15pt)", "Senior Asset Manager | Team Leader")
-    contacto = st.text_input("Contacto (10pt)", "Tel: 000 000 000 | email: cliente@gmail.com")
+    nombre = st.text_input("Nombre Completo", "ROSA GÓMEZ GARCÍA")
+    cargo = st.text_input("Subtítulo / Cargo", "Senior Asset Manager")
+    contacto = st.text_input("Contacto", "Tel: 637 485 439 | email: maria@gmail.com")
     
     st.header("2. PERFIL")
-    perfil = st.text_area("Extracto (10pt - Interlineado 1.4)", height=150)
+    perfil = st.text_area("Extracto profesional", height=150)
 
     st.header("3. EXPERIENCIA")
-    num_exp = st.number_input("¿Cuántas empresas?", 1, 10, 2)
+    num_exp = st.number_input("Nº de empresas", 1, 10, 1)
     experiencias = []
     for i in range(int(num_exp)):
         with st.expander(f"Empresa {i+1}", expanded=True):
             e = {
-                "puesto": st.text_input(f"Puesto {i+1} (11pt Negrita)"),
+                "puesto": st.text_input(f"Puesto {i+1}"),
                 "empresa": st.text_input(f"Empresa {i+1}"),
                 "fecha": st.text_input(f"Fechas {i+1}"),
                 "func": st.text_area(f"Funciones (separar por ;) {i+1}")
             }
             experiencias.append(e)
 
-    st.header("4. OTROS")
-    formacion = st.text_area("Formación (un título por línea)")
-    idiomas = st.text_input("Idiomas", "Castellano: Nativo")
-    competencias = st.text_area("Competencias (separadas por |)")
+# --- MOTOR DE GENERACIÓN PDF (Versión Robusta) ---
+class PDF(FPDF):
+    def header(self):
+        pass # Definiremos el contenido manualmente para tener control total
 
-# --- MOTOR DE DISEÑO PDF ---
-def generar_pdf_html(nombre, cargo, contacto, perfil, experiencias, formacion, idiomas, competencias):
-    lista_formacion = formacion.split('\n')
+def crear_pdf(nombre, cargo, contacto, perfil, experiencias):
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
     
-    html = f"""
-    <html>
-    <head>
-    <style>
-        @page {{ size: A4; margin: 1.5cm 2cm; }}
-        body {{ font-family: Helvetica, Arial, sans-serif; color: #333; line-height: 1.4; }}
-        .header {{ text-align: center; margin-bottom: 25px; }}
-        .nombre {{ font-size: 20pt; font-weight: bold; color: #000; text-transform: uppercase; }}
-        .subtitulo {{ font-size: 15pt; font-weight: bold; color: #000; margin-top: 5px; }}
-        .contacto {{ font-size: 10pt; color: #555; margin-top: 5px; }}
-        .seccion {{ 
-            font-size: 13pt; font-weight: bold; color: #000; text-transform: uppercase; 
-            border-bottom: 1px solid #000; margin-top: 22px; margin-bottom: 12px; padding-bottom: 2px;
-        }}
-        .exp-bloque {{ margin-bottom: 15px; }}
-        .puesto {{ font-size: 11pt; font-weight: bold; color: #000; }}
-        .empresa-fecha {{ font-size: 10pt; color: #777; margin-bottom: 5px; }}
-        .texto-base {{ font-size: 10pt; color: #333; text-align: justify; }}
-        ul {{ margin-top: 5px; padding-left: 18px; }}
-        li {{ margin-bottom: 3px; font-size: 10pt; }}
-    </style>
-    </head>
-    <body>
-        <div class="header">
-            <div class="nombre">{nombre}</div>
-            <div class="subtitulo">{cargo}</div>
-            <div class="contacto">{contacto}</div>
-        </div>
-        <div class="seccion">Perfil Profesional</div>
-        <div class="texto-base">{perfil}</div>
-        <div class="seccion">Experiencia Profesional</div>
-    """
+    # Cabecera
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.cell(0, 10, nombre.upper(), ln=True, align="C")
+    pdf.set_font("Helvetica", "B", 15)
+    pdf.cell(0, 10, cargo, ln=True, align="C")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(100)
+    pdf.cell(0, 5, contacto, ln=True, align="C")
+    pdf.ln(10)
+    
+    # Perfil
+    pdf.set_text_color(0)
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.cell(0, 8, "PERFIL PROFESIONAL", ln=True)
+    pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, perfil, align="J")
+    pdf.ln(5)
+    
+    # Experiencia
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.cell(0, 8, "EXPERIENCIA PROFESIONAL", ln=True)
+    pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
+    pdf.ln(4)
+    
     for exp in experiencias:
-        funs = exp['func'].split(';')
-        html += f"""
-        <div class="exp-bloque">
-            <div class="puesto">{exp['puesto']}</div>
-            <div class="empresa-fecha">{exp['empresa']} | {exp['fecha']}</div>
-            <ul>{"".join([f"<li>{f.strip()}</li>" for f in funs if f.strip()])}</ul>
-        </div>"""
-    
-    html += f"""
-        <div class="seccion">Formación</div>
-        <ul>{"".join([f"<li>{line.strip()}</li>" for line in lista_formacion if line.strip()])}</ul>
-        <div class="seccion">Idiomas y Competencias</div>
-        <div class="texto-base">
-            <p><b>Idiomas:</b> {idiomas}</p>
-            <p><b>Competencias:</b> {competencias}</p>
-        </div>
-    </body></html>"""
-    return html
-
-# --- BOTÓN DE ACCIÓN ---
-if st.button("🚀 GENERAR PDF PROFESIONAL"):
-    if not nombre or not perfil:
-        st.error("Por favor, rellena al menos el nombre y el perfil.")
-    else:
-        html_out = generar_pdf_html(nombre, cargo, contacto, perfil, experiencias, formacion, idiomas, competencias)
-        pdf_buffer = BytesIO()
-        pisa.CreatePDF(html_out, dest=pdf_buffer)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 6, exp['puesto'], ln=True)
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.set_text_color(100)
+        pdf.cell(0, 6, f"{exp['empresa']} | {exp['fecha']}", ln=True)
+        pdf.set_text_color(0)
+        pdf.set_font("Helvetica", "", 10)
         
-        st.success("✅ ¡CV generado con éxito!")
-        st.download_button(
-            label="⬇️ Descargar archivo PDF",
-            data=pdf_buffer.getvalue(),
-            file_name=f"CV_{nombre.replace(' ', '_')}.pdf",
-            mime="application/pdf"
-        )
+        funciones = exp['func'].split(';')
+        for f in funciones:
+            if f.strip():
+                pdf.cell(5) # Sangría
+                pdf.cell(0, 6, f"- {f.strip()}", ln=True)
+        pdf.ln(3)
+        
+    return pdf.output()
+
+# --- BOTÓN DE DESCARGA ---
+if st.button("🚀 GENERAR PDF"):
+    pdf_bytes = crear_pdf(nombre, cargo, contacto, perfil, experiencias)
+    st.success("¡PDF creado con éxito!")
+    st.download_button(
+        label="📥 Descargar Currículum",
+        data=pdf_bytes,
+        file_name=f"CV_{nombre.replace(' ', '_')}.pdf",
+        mime="application/pdf"
+    )
