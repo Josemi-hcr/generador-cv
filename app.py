@@ -1,6 +1,6 @@
 import streamlit as st
 from fpdf import FPDF
-from io import BytesIO
+import io
 
 st.set_page_config(page_title="Generador de CV Pro", layout="wide")
 
@@ -30,13 +30,9 @@ with st.sidebar:
             }
             experiencias.append(e)
 
-# --- MOTOR DE GENERACIÓN PDF (Versión Robusta) ---
-class PDF(FPDF):
-    def header(self):
-        pass # Definiremos el contenido manualmente para tener control total
-
+# --- MOTOR DE GENERACIÓN PDF ---
 def crear_pdf(nombre, cargo, contacto, perfil, experiencias):
-    pdf = PDF()
+    pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     
@@ -54,7 +50,7 @@ def crear_pdf(nombre, cargo, contacto, perfil, experiencias):
     pdf.set_text_color(0)
     pdf.set_font("Helvetica", "B", 13)
     pdf.cell(0, 8, "PERFIL PROFESIONAL", ln=True)
-    pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(2)
     pdf.set_font("Helvetica", "", 10)
     pdf.multi_cell(0, 6, perfil, align="J")
@@ -63,7 +59,7 @@ def crear_pdf(nombre, cargo, contacto, perfil, experiencias):
     # Experiencia
     pdf.set_font("Helvetica", "B", 13)
     pdf.cell(0, 8, "EXPERIENCIA PROFESIONAL", ln=True)
-    pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(4)
     
     for exp in experiencias:
@@ -78,19 +74,24 @@ def crear_pdf(nombre, cargo, contacto, perfil, experiencias):
         funciones = exp['func'].split(';')
         for f in funciones:
             if f.strip():
-                pdf.cell(5) # Sangría
+                pdf.cell(5) 
                 pdf.cell(0, 6, f"- {f.strip()}", ln=True)
         pdf.ln(3)
         
+    # Retornar el PDF como bytes de forma segura
     return pdf.output()
 
-# --- BOTÓN DE DESCARGA ---
+# --- ACCIÓN ---
 if st.button("🚀 GENERAR PDF"):
-    pdf_bytes = crear_pdf(nombre, cargo, contacto, perfil, experiencias)
-    st.success("¡PDF creado con éxito!")
-    st.download_button(
-        label="📥 Descargar Currículum",
-        data=pdf_bytes,
-        file_name=f"CV_{nombre.replace(' ', '_')}.pdf",
-        mime="application/pdf"
-    )
+    try:
+        pdf_data = crear_pdf(nombre, cargo, contacto, perfil, experiencias)
+        
+        st.success("¡PDF creado con éxito!")
+        st.download_button(
+            label="📥 Descargar Currículum",
+            data=bytes(pdf_data), # Convertimos explícitamente a bytes
+            file_name=f"CV_{nombre.replace(' ', '_')}.pdf",
+            mime="application/pdf"
+        )
+    except Exception as e:
+        st.error(f"Hubo un error al generar el archivo: {e}")
